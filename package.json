@@ -1,0 +1,8 @@
+{
+  "name": "bookshelf-supermodel",
+  "version": "1.0.0",
+  "description": "A Bookshelf.js base model with super powers",
+  "main": "index.js",
+  "author": "Bryan Paronto",
+  "license": "MIT"
+}
