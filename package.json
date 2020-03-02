@@ -1,13 +1,17 @@
 {
-  "name": "bookshelf-supermodel",
-  "version": "1.0.0",
+  "name": "@apisandipas/bookshelf-supermodel",
+  "version": "0.0.1",
   "description": "A Bookshelf.js base model with super powers",
   "main": "index.js",
-  "author": "Bryan Paronto",
+  "author": "Bryan Paronto <bparonto@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/apisandipas/bookshelf-supermodel.git"
+  },
   "license": "MIT",
   "dependencies": {
     "@hapi/joi": "^16.1.8",
-    "bcrypt": "^3.0.7",
+    "bcryptjs": "^2.4.3",
     "lodash.camelcase": "^4.3.0",
     "lodash.difference": "^4.5.0",
     "lodash.snakecase": "^4.1.1",

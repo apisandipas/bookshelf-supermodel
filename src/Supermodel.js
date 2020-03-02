@@ -1,10 +1,10 @@
-'use strict'
-const Joi = require('@hapi/joi')
-const bcrypt = require('bcrypt')
-const extend = require('xtend')
-const diff = require('lodash.difference')
-const camelCase = require('lodash.camelcase')
-const snakeCase = require('lodash.snakecase')
+'use strict';
+const Joi = require('@hapi/joi');
+const bcrypt = require('bcryptjs');
+const extend = require('xtend');
+const diff = require('lodash.difference');
+const camelCase = require('lodash.camelcase');
+const snakeCase = require('lodash.snakecase');
 
 /**
  * Returns a formatted key given a formatter function
@@ -12,9 +12,9 @@ const snakeCase = require('lodash.snakecase')
  */
 const formatKey = formatter => attr =>
   Object.keys(attr).reduce((updated, oldKey) => {
-    updated[formatter(oldKey)] = attr[oldKey]
-    return updated
-  }, {})
+    updated[formatter(oldKey)] = attr[oldKey];
+    return updated;
+  }, {});
 
 /**
  * Generate the BCrypt hash for a given string.
@@ -25,17 +25,17 @@ const formatKey = formatter => attr =>
  */
 const hash = async value => {
   if (value === null) {
-    return Promise.resolve(null)
+    return Promise.resolve(null);
   }
 
   if (isEmpty(value)) {
-    return Promise.resolve(undefined)
+    return Promise.resolve(undefined);
   }
 
-  const salt = await bcrypt.genSalt(12)
+  const salt = await bcrypt.genSaltSync(12);
 
-  return bcrypt.hash(value, salt)
-}
+  return bcrypt.hashSync(value, salt);
+};
 
 /**
  * Enable password hashing on the model when the model is saved.
@@ -44,31 +44,31 @@ const hash = async value => {
  * @returns {Model} - The model
  */
 const enablePasswordHashing = model => {
-  const field = 'passwordDigest'
-  const PRIVATE_PASSWORD_FIELD = '__password'
+  const field = 'passwordDigest';
+  const PRIVATE_PASSWORD_FIELD = '__password';
 
-  model.virtuals = model.virtuals || {}
+  model.virtuals = model.virtuals || {};
   model.virtuals.password = {
     get: function getPassword() {},
     set: function setPassword(value) {
-      this[PRIVATE_PASSWORD_FIELD] = value
+      this[PRIVATE_PASSWORD_FIELD] = value;
     }
-  }
+  };
 
   model.on('saving', async model => {
-    let value = model[PRIVATE_PASSWORD_FIELD]
+    let value = model[PRIVATE_PASSWORD_FIELD];
 
-    const hashed = hash(value)
+    const hashed = hash(value);
 
-    model.unset('password')
+    model.unset('password');
 
     if (hashed !== undefined) {
-      model.set(field, hashed)
+      model.set(field, hashed);
     }
 
-    return model
-  })
-}
+    return model;
+  });
+};
 
 /**
  * Expects a configured Bookshelf instance
@@ -76,23 +76,23 @@ const enablePasswordHashing = model => {
  */
 const makeSupermodel = bookshelf => {
   if (!bookshelf) {
-    throw new Error('Must pass an initialized bookshelf instance')
+    throw new Error('Must pass an initialized bookshelf instance');
   }
 
   /**
    * Enable virtuals plugin
    */
-  bookshelf.plugin('virtuals')
+  bookshelf.plugin('virtuals');
 
-  const bookshelfModel = bookshelf.Model
+  const bookshelfModel = bookshelf.Model;
 
   const Supermodel = bookshelf.Model.extend(
     {
       constructor: () => {
-        bookshelfModel.apply(this, arguments)
+        bookshelfModel.apply(this, arguments);
 
         if (this.hasSecurePassword) {
-          enablePasswordHashing(this)
+          enablePasswordHashing(this);
         }
 
         if (this.validate) {
@@ -101,13 +101,13 @@ const makeSupermodel = bookshelf => {
             id: Joi.any().optional(),
             createdAt: Joi.date().optional(),
             updatedAt: Joi.date().optional()
-          }
+          };
 
           this.validate = this.validate.isJoi
             ? this.validate.keys(baseValidation)
-            : Joi.object(this.validate).keys(baseValidation)
+            : Joi.object(this.validate).keys(baseValidation);
 
-          this.on('saving', this.validateSave)
+          this.on('saving', this.validateSave);
         }
       },
 
@@ -135,7 +135,7 @@ const makeSupermodel = bookshelf => {
        *  Model on('saving') callback
        */
       validateSave: (model, attrs, options) => {
-        let validation
+        let validation;
         if (
           (model && !model.isNew()) ||
           (options && options.method === 'update') ||
@@ -143,36 +143,36 @@ const makeSupermodel = bookshelf => {
         ) {
           const schemaKeys = this.validate._inner.children.map(
             child => child.key
-          )
-          const presentKeys = Object.keys(attrs)
-          const optionalKeys = diff(schemaKeys, presentKeys)
+          );
+          const presentKeys = Object.keys(attrs);
+          const optionalKeys = diff(schemaKeys, presentKeys);
 
           validation = Joi.validate(
             attrs,
             optionalKeys.length
               ? this.validate.optionalKeys(optionalKeys) // optionalKeys() doesn't like empty arrays
               : this.validate
-          )
+          );
         } else {
-          validation = Joi.validate(this.attributes, this.validate)
+          validation = Joi.validate(this.attributes, this.validate);
         }
 
         if (validation.error) {
-          validation.error.tableName = this.tableName
+          validation.error.tableName = this.tableName;
 
-          throw validation.error
+          throw validation.error;
         } else {
-          let nextValues
+          let nextValues;
 
           if (typeof this.format === 'function') {
-            nextValues = Object.entries(validation.value).map(this.format)
+            nextValues = Object.entries(validation.value).map(this.format);
           } else {
-            nextValues = validation.value
+            nextValues = validation.value;
           }
 
-          this.set(nextValues)
+          this.set(nextValues);
 
-          return validation.value
+          return validation.value;
         }
       }
     },
@@ -186,7 +186,7 @@ const makeSupermodel = bookshelf => {
       findAll: (filter, options) => {
         return this.forge()
           .where(extend({}, filter))
-          .fetchAll(options)
+          .fetchAll(options);
       },
 
       /**
@@ -196,7 +196,7 @@ const makeSupermodel = bookshelf => {
        * @return {Promise(bookshelf.Model)}
        */
       findById: (id, options) => {
-        return this.findOne({ [this.prototype.idAttribute]: id }, options)
+        return this.findOne({ [this.prototype.idAttribute]: id }, options);
       },
 
       /**
@@ -207,8 +207,8 @@ const makeSupermodel = bookshelf => {
        * @return {Promise(bookshelf.Model)}
        */
       findOne: (query, options) => {
-        options = extend({ require: true }, options)
-        return this.forge(query).fetch(options)
+        options = extend({ require: true }, options);
+        return this.forge(query).fetch(options);
       },
 
       /** s
@@ -218,7 +218,7 @@ const makeSupermodel = bookshelf => {
        * @return {Promise(bookshelf.Model)}
        */
       create: (data, options) => {
-        return this.forge(data).save(null, options)
+        return this.forge(data).save(null, options);
       },
 
       /**
@@ -231,10 +231,10 @@ const makeSupermodel = bookshelf => {
        * @return {Promise(bookshelf.Model)}
        */
       update: (data, options) => {
-        options = extend({ patch: true, require: true }, options)
+        options = extend({ patch: true, require: true }, options);
         return this.forge({ [this.prototype.idAttribute]: options.id })
           .fetch(options)
-          .then(model => (model ? model.save(data, options) : undefined))
+          .then(model => (model ? model.save(data, options) : undefined));
       },
 
       /**
@@ -245,10 +245,10 @@ const makeSupermodel = bookshelf => {
        * @return {Promise(bookshelf.Model)} empty model
        */
       destroy: options => {
-        options = extend({ require: true }, options)
+        options = extend({ require: true }, options);
         return this.forge({ [this.prototype.idAttribute]: options.id }).destroy(
           options
-        )
+        );
       },
 
       /**
@@ -262,9 +262,9 @@ const makeSupermodel = bookshelf => {
         return this.findOne(data, extend(options, { require: false }))
           .bind(this)
           .then(model => {
-            var defaults = options && options.defaults
-            return model || this.create(extend(defaults, data), options)
-          })
+            var defaults = options && options.defaults;
+            return model || this.create(extend(defaults, data), options);
+          });
       },
 
       /**
@@ -285,13 +285,13 @@ const makeSupermodel = bookshelf => {
               : this.create(
                   extend(selectData, updateData),
                   extend(options, { method: 'insert' })
-                )
-          })
+                );
+          });
       }
     }
-  )
+  );
 
-  return Supermodel
-}
+  return Supermodel;
+};
 
-module.exports = makeSupermodel
+module.exports = makeSupermodel;
