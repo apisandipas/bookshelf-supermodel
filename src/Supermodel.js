@@ -32,9 +32,9 @@ const hash = async value => {
     return Promise.resolve(undefined);
   }
 
-  const salt = await bcrypt.genSaltSync(12);
+  const salt = await bcrypt.genSalt(12);
 
-  return bcrypt.hashSync(value, salt);
+  return bcrypt.hash(value, salt);
 };
 
 /**
