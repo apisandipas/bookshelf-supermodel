@@ -4,17 +4,29 @@
   "description": "A Bookshelf.js base model with super powers",
   "main": "index.js",
   "author": "Bryan Paronto <bparonto@gmail.com>",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/apisandipas/bookshelf-supermodel.git"
   },
-  "license": "MIT",
+  "scripts": {
+    "test": "jest"
+  },
   "dependencies": {
-    "@hapi/joi": "^16.1.8",
+    "@hapi/joi": "^14.3.1",
     "bcryptjs": "^2.4.3",
-    "lodash.camelcase": "^4.3.0",
+    "bookshelf-case-converter-plugin": "^1.0.0",
+    "bookshelf-virtuals-plugin": "^0.1.1",
+    "debug": "^4.1.1",
     "lodash.difference": "^4.5.0",
+    "lodash.camelcase": "^4.3.0",
     "lodash.snakecase": "^4.1.1",
     "xtend": "^4.0.2"
+  },
+  "devDependencies": {
+    "bookshelf": "^1.1.0",
+    "jest": "^25.1.0",
+    "knex": "^0.20.11",
+    "sqlite3": "^4.1.1"
   }
 }

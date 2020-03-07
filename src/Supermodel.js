@@ -2,9 +2,11 @@
 const Joi = require('@hapi/joi');
 const bcrypt = require('bcryptjs');
 const extend = require('xtend');
-const diff = require('lodash.difference');
-const camelCase = require('lodash.camelcase');
+const difference = require('lodash.difference');
 const snakeCase = require('lodash.snakecase');
+const camelCase = require('lodash.camelcase');
+
+const debug = require('debug')('supermodel');
 
 /**
  * Returns a formatted key given a formatter function
@@ -82,13 +84,19 @@ const makeSupermodel = bookshelf => {
   /**
    * Enable virtuals plugin
    */
-  bookshelf.plugin('virtuals');
+  bookshelf.plugin('bookshelf-virtuals-plugin');
+  bookshelf.plugin('bookshelf-case-converter-plugin');
+
+  /**
+   * Enable automatic snake_case to camelCase conversion
+   */
+  // bookshelf.plugin('bookshelf-case-converter-plugin');
 
   const bookshelfModel = bookshelf.Model;
 
   const Supermodel = bookshelf.Model.extend(
     {
-      constructor: () => {
+      constructor: function() {
         bookshelfModel.apply(this, arguments);
 
         if (this.hasSecurePassword) {
@@ -119,12 +127,12 @@ const makeSupermodel = bookshelf => {
       /**
        * Convert snake_case column names to camelCase field names
        */
-      parse: formatKey(camelCase),
+      // parse: formatKey(camelCase),
 
-      /**
-       * Convert camelCase field names to snake_case column names
-       */
-      format: formatKey(snakeCase),
+      // /**
+      //  * Convert camelCase field names to snake_case column names
+      //  */
+      // format: formatKey(snakeCase),
 
       /**
        *  Models by default do not have passwords
@@ -134,23 +142,24 @@ const makeSupermodel = bookshelf => {
       /**
        *  Model on('saving') callback
        */
-      validateSave: (model, attrs, options) => {
+      validateSave: function validateSave(model, attrs, options) {
         let validation;
         if (
           (model && !model.isNew()) ||
-          (options && options.method === 'update') ||
-          options.patch === true
+          (options && (options.method === 'update' || options.patch === true))
         ) {
-          const schemaKeys = this.validate._inner.children.map(
-            child => child.key
-          );
+          const schemaKeys = this.validate._inner.children.map(function(child) {
+            return child.key;
+          });
           const presentKeys = Object.keys(attrs);
-          const optionalKeys = diff(schemaKeys, presentKeys);
+          const optionalKeys = difference(schemaKeys, presentKeys);
 
+          // only validate the keys that are being updated
           validation = Joi.validate(
             attrs,
             optionalKeys.length
-              ? this.validate.optionalKeys(optionalKeys) // optionalKeys() doesn't like empty arrays
+              ? // optionalKeys() doesn't like empty arrays
+                this.validate.optionalKeys(optionalKeys)
               : this.validate
           );
         } else {
@@ -162,16 +171,7 @@ const makeSupermodel = bookshelf => {
 
           throw validation.error;
         } else {
-          let nextValues;
-
-          if (typeof this.format === 'function') {
-            nextValues = Object.entries(validation.value).map(this.format);
-          } else {
-            nextValues = validation.value;
-          }
-
-          this.set(nextValues);
-
+          this.set(validation.value);
           return validation.value;
         }
       }
@@ -183,7 +183,7 @@ const makeSupermodel = bookshelf => {
        * @param {Object} [options] Options used of model.fetchAll
        * @return {Promise(bookshelf.Collection)} Bookshelf Collection of Models
        */
-      findAll: (filter, options) => {
+      findAll: function(filter, options) {
         return this.forge()
           .where(extend({}, filter))
           .fetchAll(options);
@@ -195,7 +195,7 @@ const makeSupermodel = bookshelf => {
        * @param {Object} [options] Options used of model.fetch
        * @return {Promise(bookshelf.Model)}
        */
-      findById: (id, options) => {
+      findById: function(id, options) {
         return this.findOne({ [this.prototype.idAttribute]: id }, options);
       },
 
@@ -206,8 +206,7 @@ const makeSupermodel = bookshelf => {
        * @param {Boolean} [options.require=false]
        * @return {Promise(bookshelf.Model)}
        */
-      findOne: (query, options) => {
-        options = extend({ require: true }, options);
+      findOne: function(query, options) {
         return this.forge(query).fetch(options);
       },
 
@@ -217,7 +216,7 @@ const makeSupermodel = bookshelf => {
        * @param {Object} [options] Options for model.save
        * @return {Promise(bookshelf.Model)}
        */
-      create: (data, options) => {
+      create: function(data, options) {
         return this.forge(data).save(null, options);
       },
 
@@ -230,7 +229,7 @@ const makeSupermodel = bookshelf => {
        * @param {Boolean} [options.require=true]
        * @return {Promise(bookshelf.Model)}
        */
-      update: (data, options) => {
+      update: function(data, options) {
         options = extend({ patch: true, require: true }, options);
         return this.forge({ [this.prototype.idAttribute]: options.id })
           .fetch(options)
@@ -244,7 +243,7 @@ const makeSupermodel = bookshelf => {
        * @param {Boolean} [options.require=false]
        * @return {Promise(bookshelf.Model)} empty model
        */
-      destroy: options => {
+      destroy: function(options) {
         options = extend({ require: true }, options);
         return this.forge({ [this.prototype.idAttribute]: options.id }).destroy(
           options
@@ -258,8 +257,9 @@ const makeSupermodel = bookshelf => {
        * @param {Object} [options.defaults] Defaults to apply to a create
        * @return {Promise(bookshelf.Model)} single Model
        */
-      findOrCreate: (data, options) => {
-        return this.findOne(data, extend(options, { require: false }))
+      findOrCreate: function(data, options) {
+        options = extend({ require: false }, options);
+        return this.findOne(data, options)
           .bind(this)
           .then(model => {
             var defaults = options && options.defaults;
@@ -273,8 +273,9 @@ const makeSupermodel = bookshelf => {
        * @param {Object} updateData Data for update
        * @param {Object} [options] Options for model.save
        */
-      upsert: (selectData, updateData, options) => {
-        return this.findOne(selectData, extend(options, { require: false }))
+      upsert: function(selectData, updateData, options) {
+        options = extend({ require: false }, options);
+        return this.findOne(selectData, options)
           .bind(this)
           .then(model => {
             return model
@@ -295,3 +296,7 @@ const makeSupermodel = bookshelf => {
 };
 
 module.exports = makeSupermodel;
+
+module.exports.pluggable = function(bookshelf, params) {
+  bookshelf.Model = module.exports.apply(null, arguments);
+};
