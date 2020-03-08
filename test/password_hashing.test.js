@@ -2,6 +2,7 @@ const Joi = require('@hapi/joi');
 const db = require('./db');
 const bookshelf = require('bookshelf')(db);
 const SuperModel = require('../index')(bookshelf);
+const PasswordMismatchError = require('../src/PasswordMismatchError');
 const debug = require('debug')('supermodel');
 
 describe('SuperModel Secure Password functionality', () => {
@@ -37,12 +38,12 @@ describe('SuperModel Secure Password functionality', () => {
   });
 
   describe('with the default column', () => {
-    beforeEach(function() {
+    beforeEach(() => {
       model = new BasicModel({ id: 1, password: 'testing' });
     });
 
-    describe('before save', function() {
-      it('does not keep the raw password on the model', function() {
+    describe('before save', () => {
+      it('does not keep the raw password on the model', () => {
         expect(model.get('password')).toBe(undefined);
         expect(model.attributes.password).toBe(undefined);
 
@@ -51,12 +52,12 @@ describe('SuperModel Secure Password functionality', () => {
       });
     });
 
-    describe('after save', function() {
-      beforeEach(function() {
+    describe('after save', () => {
+      beforeEach(() => {
         return model.save({}, { method: 'insert' });
       });
 
-      afterEach(function() {
+      afterEach(() => {
         return model.destroy();
       });
 
@@ -66,7 +67,7 @@ describe('SuperModel Secure Password functionality', () => {
         expect(model.get('passwordDigest')).toBeNull();
       });
 
-      it('does not change the password digest if given undefined', async function() {
+      it('does not change the password digest if given undefined', async () => {
         const originalString = model.get('passwordDigest');
         model.set('password', undefined);
 
@@ -74,7 +75,7 @@ describe('SuperModel Secure Password functionality', () => {
         expect(model.get('passwordDigest')).toEqual(originalString);
       });
 
-      it('does not change the password digest if given an empty string', async function() {
+      it('does not change the password digest if given an empty string', async () => {
         const originalString = model.get('passwordDigest');
         model.set('password', '');
 
@@ -82,7 +83,7 @@ describe('SuperModel Secure Password functionality', () => {
         expect(model.get('passwordDigest')).toEqual(originalString);
       });
 
-      it('changes the password digest if given a blank (spaces-only) string', async function() {
+      it('changes the password digest if given a blank (spaces-only) string', async () => {
         const originalString = model.get('passwordDigest');
         model.set('password', '  ');
         await model.save();
@@ -91,10 +92,10 @@ describe('SuperModel Secure Password functionality', () => {
       });
     });
 
-    it('handles the case if a later validation throws an exception', function() {
+    it('handles the case if a later validation throws an exception', () => {
       let digest;
 
-      model.on('saving', function(model) {
+      model.on('saving', model => {
         throw new Error();
       });
 
@@ -123,7 +124,7 @@ describe('SuperModel Secure Password functionality', () => {
   });
 
   describe('with a custom column', () => {
-    beforeEach(function() {
+    beforeEach(() => {
       model = new CustomModel({ id: 2, password: 'testing' });
       return model.save({}, { require: false, insert: true });
     });
@@ -137,8 +138,8 @@ describe('SuperModel Secure Password functionality', () => {
     });
   });
 
-  describe('with a bcrypt rounds', function() {
-    describe('custom number of rounds', function() {
+  describe('with a bcrypt rounds', () => {
+    describe('custom number of rounds', () => {
       it('uses custom bcrypt rounds', async () => {
         model = new RoundsModel({ password: 'testing' });
         await model.save({}, { require: false, insert: true });
@@ -146,11 +147,80 @@ describe('SuperModel Secure Password functionality', () => {
       });
     });
 
-    describe('default number of rounds', function() {
+    describe('default number of rounds', () => {
       it('uses default bcrypt rounds', async () => {
         model = new BasicModel({ id: 4, password: 'testing' });
         await model.save({}, { require: false, insert: true });
         expect(model.get('passwordDigest').substr(4, 2)).toEqual('12');
+      });
+    });
+  });
+
+  describe('#authenticate', () => {
+    describe('with hasSecurePassword enabled on the model', () => {
+      beforeEach(() => {
+        model = new BasicModel({ id: 1, password: 'testing' });
+      });
+      describe('before save', () => {
+        it('does not authenticate until the record is saved', async () => {
+          try {
+            await model.authenticate('testing');
+            expect(false).toBeTruthy();
+          } catch (err) {
+            expect(err).not.toBeUndefined();
+            expect(err).toBeInstanceOf(PasswordMismatchError);
+            expect(err.name).toEqual('PasswordMismatchError');
+          }
+        });
+      });
+      describe('after save', () => {
+        beforeEach(() => {
+          return model.save({}, { require: false, insert: true });
+        });
+        it('resolves the Model if the password matches', () => {
+          return model.authenticate('testing').then(
+            model => {
+              expect(model).not.toBeUndefined();
+            },
+            err => {
+              expect(err).toBeUndefined();
+            }
+          );
+        });
+        it('rejects with a PasswordMismatchError if the password does not match', () => {
+          return model.authenticate('invalid').then(
+            model => {
+              expect(false).toBeTruthy();
+            },
+            err => {
+              expect(err).not.toBeUndefined();
+              expect(err).toBeInstanceOf(PasswordMismatchError);
+              expect(err.name).toEqual('PasswordMismatchError');
+            }
+          );
+        });
+        it('rejects with a PasswordMismatchError if the no password is provided', async () => {
+          try {
+            await model.authenticate();
+            expect(model).toBeUndefined();
+          } catch (err) {
+            expect(err).not.toBeUndefined();
+            expect(err).toBeInstanceOf(PasswordMismatchError);
+            expect(err.name).toEqual('PasswordMismatchError');
+          }
+        });
+      });
+    });
+    describe('without hasSecurePassword on this model', () => {
+      it('calls the model`s `authenticate` method', () => {
+        const Model = bookshelf.Model.extend({});
+        model = new Model({ id: 1, password: 'testing' });
+        try {
+          return model.authenticate('testing');
+        } catch (err) {
+          expect(err).not.toBeUndefined;
+          expect(err).toBeInstanceOf(TypeError);
+        }
       });
     });
   });

@@ -3,7 +3,7 @@ const Joi = require('@hapi/joi');
 const bcrypt = require('bcryptjs');
 const extend = require('xtend');
 const difference = require('lodash.difference');
-
+const PasswordMismatchError = require('./PasswordMismatchError');
 const debug = require('debug')('supermodel');
 
 const DEFAULT_PASSWORD_DIGEST_FIELD = 'passwordDigest';
@@ -129,6 +129,9 @@ const makeSupermodel = bookshelf => {
     throw new Error('Must pass an initialized bookshelf instance');
   }
 
+  bookshelf.PasswordMismatchError = PasswordMismatchError;
+  bookshelf.Model.PasswordMismatchError = PasswordMismatchError;
+
   /**
    * Enable virtuals plugin
    */
@@ -215,6 +218,34 @@ const makeSupermodel = bookshelf => {
           this.set(validation.value);
           return validation.value;
         }
+      },
+
+      /**
+       * Authenticate a model's password, returning a Promise which resolves to the model (`this`) if
+       * the password matches, and rejects with a `PasswordMismatchError` if the it does not match.
+       *
+       * @param {String} password - The password to check
+       * @returns {Promise.<Model>} A promise resolving to `this` model on success, or rejects with
+       * a `PasswordMismatchError` upon failed check.
+       */
+      authenticate: async function(password) {
+        const digest = this.get(passwordDigestField(this));
+
+        if (!this.hasSecurePassword) {
+          return bookshelfModel.prototype.authenticate.apply(this, arguments);
+        }
+
+        if (isEmpty(password) || isEmpty(digest)) {
+          return Promise.reject(new this.constructor.PasswordMismatchError());
+        }
+
+        const passwordMatches = await bcrypt.compare(password, digest);
+
+        if (!passwordMatches) {
+          throw new this.constructor.PasswordMismatchError();
+        }
+
+        return Promise.resolve(this);
       }
     },
     {
