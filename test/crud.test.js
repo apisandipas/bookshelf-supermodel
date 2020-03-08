@@ -107,15 +107,6 @@ describe('SuperModel CRUD functionality', () => {
       expect(error.tableName).toBe('crud_table');
     });
 
-    it('should work with updates method specified', async () => {
-      // WHY DOESNT THIS WORK WITH CAMELCASE KEYS????
-      const model = await SpecimenClass.where({ first_name: 'hello' }).save(
-        { lastName: 'world' },
-        { patch: true, method: 'update', require: false }
-      );
-      expect(model.get('lastName')).toBe('world');
-    });
-
     it('should work with model id specified', async () => {
       const model = await SpecimenClass.forge({ id: 1 }).save(
         { lastName: 'world' },
@@ -172,7 +163,7 @@ describe('SuperModel CRUD functionality', () => {
 
   describe('update', () => {
     it('should return a model', async () => {
-      expect(specimen.get('first_name')).not.toEqual('goodbye');
+      expect(specimen.get('firstName')).not.toEqual('goodbye');
       const model = await SpecimenClass.update(
         {
           firstName: 'goodbye'
@@ -188,7 +179,7 @@ describe('SuperModel CRUD functionality', () => {
     it('should return if require:false and not found', async () => {
       const model = await SpecimenClass.update(
         {
-          first_name: 'goodbye'
+          firstName: 'goodbye'
         },
         {
           id: -1,

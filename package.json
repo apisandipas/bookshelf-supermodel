@@ -1,6 +1,6 @@
 {
   "name": "@apisandipas/supermodel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A Bookshelf.js base model with super powers",
   "main": "index.js",
   "author": "Bryan Paronto <bparonto@gmail.com>",
