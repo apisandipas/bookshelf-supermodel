@@ -3,10 +3,25 @@ const Joi = require('@hapi/joi');
 const bcrypt = require('bcryptjs');
 const extend = require('xtend');
 const difference = require('lodash.difference');
-const snakeCase = require('lodash.snakecase');
-const camelCase = require('lodash.camelcase');
 
 const debug = require('debug')('supermodel');
+
+const DEFAULT_PASSWORD_DIGEST_FIELD = 'passwordDigest';
+const DEFAULT_SALT_ROUNDS = 12;
+
+/**
+ * Checks if a string is empty (null, undefined, or length of zero)
+ *
+ * @param {String} str - A string
+ * @returns {Boolean} - Whether or not the string is empty
+ */
+const isEmpty = str => {
+  if (str === undefined || str === null) {
+    return true;
+  }
+
+  return ('' + str).length === 0;
+};
 
 /**
  * Returns a formatted key given a formatter function
@@ -25,7 +40,7 @@ const formatKey = formatter => attr =>
  * @param {String} value - The string to hash
  * @returns {Promise.<String>} - A BCrypt hashed version of the string
  */
-const hash = async value => {
+const hash = async (value, rounds) => {
   if (value === null) {
     return Promise.resolve(null);
   }
@@ -34,9 +49,43 @@ const hash = async value => {
     return Promise.resolve(undefined);
   }
 
-  const salt = await bcrypt.genSalt(12);
+  const salt = await bcrypt.genSalt(rounds);
 
   return bcrypt.hash(value, salt);
+};
+
+/**
+ * Get the password field from the plugin configuration.  defaults to `password_digest`
+ *
+ * @param {Model} model - the Bookshelf model
+ * @returns {String} - The database column name for the password digest
+ */
+const passwordDigestField = model => {
+  if (
+    typeof model.hasSecurePassword === 'string' ||
+    model.hasSecurePassword instanceof String
+  ) {
+    return model.hasSecurePassword;
+  }
+
+  return DEFAULT_PASSWORD_DIGEST_FIELD;
+};
+
+/**
+ * Get the number of bcrypt salt rounds from the model.  defaults to `DEFAULT_SALT_ROUNDS`
+ *
+ * @param {Model} model - the Bookshelf model
+ * @returns {Number} - The number of bcrypt salt rounds
+ */
+const bcryptRounds = model => {
+  if (
+    typeof model.bcryptRounds === 'number' &&
+    model.bcryptRounds === parseInt(model.bcryptRounds, 10)
+  ) {
+    return model.bcryptRounds;
+  }
+
+  return DEFAULT_SALT_ROUNDS;
 };
 
 /**
@@ -45,8 +94,9 @@ const hash = async value => {
  * @param {Model} model - The bookshelf model to set up
  * @returns {Model} - The model
  */
-const enablePasswordHashing = model => {
-  const field = 'passwordDigest';
+const enablePasswordHashing = function(model) {
+  // const field = 'passwordDigest';
+  const field = passwordDigestField(model);
   const PRIVATE_PASSWORD_FIELD = '__password';
 
   model.virtuals = model.virtuals || {};
@@ -59,9 +109,7 @@ const enablePasswordHashing = model => {
 
   model.on('saving', async model => {
     let value = model[PRIVATE_PASSWORD_FIELD];
-
-    const hashed = hash(value);
-
+    const hashed = await hash(value, bcryptRounds(model));
     model.unset('password');
 
     if (hashed !== undefined) {
@@ -85,20 +133,27 @@ const makeSupermodel = bookshelf => {
    * Enable virtuals plugin
    */
   bookshelf.plugin('bookshelf-virtuals-plugin');
-  bookshelf.plugin('bookshelf-case-converter-plugin');
 
   /**
    * Enable automatic snake_case to camelCase conversion
    */
-  // bookshelf.plugin('bookshelf-case-converter-plugin');
+  bookshelf.plugin('bookshelf-case-converter-plugin');
 
   const bookshelfModel = bookshelf.Model;
 
   const Supermodel = bookshelf.Model.extend(
     {
-      constructor: function() {
-        bookshelfModel.apply(this, arguments);
+      /**
+       * Model has default timestamps
+       */
+      hasTimestamps: ['createdAt', 'updatedAt'],
 
+      /**
+       *  Models by default do not have passwords
+       */
+      hasSecurePassword: false,
+
+      constructor: function() {
         if (this.hasSecurePassword) {
           enablePasswordHashing(this);
         }
@@ -111,33 +166,19 @@ const makeSupermodel = bookshelf => {
             updatedAt: Joi.date().optional()
           };
 
+          if (this.hasSecurePassword) {
+            baseValidation.passwordDigest = Joe.string().optional();
+          }
+
           this.validate = this.validate.isJoi
             ? this.validate.keys(baseValidation)
             : Joi.object(this.validate).keys(baseValidation);
 
           this.on('saving', this.validateSave);
         }
+
+        bookshelfModel.apply(this, arguments);
       },
-
-      /**
-       * Model has default timestamps
-       */
-      hasTimestamps: ['createdAt', 'updatedAt'],
-
-      /**
-       * Convert snake_case column names to camelCase field names
-       */
-      // parse: formatKey(camelCase),
-
-      // /**
-      //  * Convert camelCase field names to snake_case column names
-      //  */
-      // format: formatKey(snakeCase),
-
-      /**
-       *  Models by default do not have passwords
-       */
-      hasSecurePassword: false,
 
       /**
        *  Model on('saving') callback
