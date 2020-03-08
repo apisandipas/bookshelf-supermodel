@@ -56,13 +56,13 @@ describe('SuperModel CRUD functionality', () => {
       }).toThrow(/Must pass an initialized bookshelf instance/);
     });
 
-    it('should be separately applyable', function() {
+    it('should be separately applyable', () => {
       var Model = require('../src/Supermodel')(bookshelf);
       expect(typeof Model.findOne).toBe('function');
       expect(typeof bookshelf.Model.findOne).toBe('undefined');
     });
 
-    it('should be usable as a bookshelf plugin', function() {
+    it('should be usable as a bookshelf plugin', () => {
       expect(typeof bookshelf.Model.findOne).toBe('undefined');
       bookshelf.plugin(function() {
         require('../src/Supermodel').pluggable.apply(null, arguments);
@@ -284,8 +284,8 @@ describe('SuperModel CRUD functionality', () => {
       expect(model.get('lastName')).toBe(null);
     });
   });
-  describe('upsert', function() {
-    it('should update if existing model found', async function() {
+  describe('upsert', () => {
+    it('should update if existing model found', async () => {
       const firstModel = await SpecimenClass.create({
         firstName: 'hello',
         lastName: 'upsert'
@@ -305,7 +305,7 @@ describe('SuperModel CRUD functionality', () => {
       expect(secondModel.id).toEqual(firstModel.id);
     });
 
-    it('should create if existing model not found', async function() {
+    it('should create if existing model not found', async () => {
       const model = await SpecimenClass.upsert(
         {
           firstName: 'goodbye',
@@ -320,7 +320,7 @@ describe('SuperModel CRUD functionality', () => {
       expect(model.get('lastName')).toEqual('updated');
     });
 
-    it('should create even with application assigned id', async function() {
+    it('should create even with application assigned id', async () => {
       const model = await SpecimenClass.upsert(
         {
           id: 0,

@@ -1,5 +1,5 @@
 {
-  "name": "@apisandipas/bookshelf-supermodel",
+  "name": "@apisandipas/supermodel",
   "version": "0.0.1",
   "description": "A Bookshelf.js base model with super powers",
   "main": "index.js",
