@@ -1,6 +1,6 @@
 # Bookshelf Supermodel [![Build Status](https://travis-ci.org/apisandipas/bookshelf-supermodel.svg?branch=master)](https://travis-ci.org/apisandipas/bookshelf-supermodel)
 
-## @apiasandipas/supermodel
+## @apisandipas/supermodel
 
 A [Bookshelf.js](https://github.com/tgriesser/bookshelf) base model class with super powers.
 
