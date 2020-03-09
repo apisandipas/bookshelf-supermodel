@@ -24,16 +24,6 @@ const isEmpty = str => {
 };
 
 /**
- * Returns a formatted key given a formatter function
- * @param {Function} formatter
- */
-const formatKey = formatter => attr =>
-  Object.keys(attr).reduce((updated, oldKey) => {
-    updated[formatter(oldKey)] = attr[oldKey];
-    return updated;
-  }, {});
-
-/**
  * Generate the BCrypt hash for a given string.
  *
  * @param {Number} rounds - The number of bcrypt salt rounds
@@ -163,7 +153,6 @@ const makeSupermodel = bookshelf => {
 
         if (this.validate) {
           const baseValidation = {
-            // id might be number or string, for optimization
             id: Joi.any().optional(),
             createdAt: Joi.date().optional(),
             updatedAt: Joi.date().optional()
