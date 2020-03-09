@@ -1,4 +1,4 @@
-# Bookshelf Supermodel
+# Bookshelf Supermodel [![Build Status](https://travis-ci.org/apisandipas/bookshelf-supermodel.svg?branch=master)](https://travis-ci.org/apisandipas/bookshelf-supermodel)
 
 ## @apiasandipas/supermodel
 
